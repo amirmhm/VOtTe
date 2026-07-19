@@ -15,6 +15,8 @@
 - [x] Release build compiles without warnings or errors
 - [x] Self-contained Windows x64 executable launches
 - [x] Release ZIP extracts correctly
+- [x] Rendered UI preview verifies the custom scrollbar layout
+- [x] Minimize hides the window from the taskbar while the tray process remains active
 - [ ] Test a real OpenAI transcription
 - [ ] Test a real OpenRouter transcription
 - [ ] Test typing into Notepad or another non-elevated editor

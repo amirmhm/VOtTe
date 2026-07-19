@@ -19,7 +19,7 @@ When VoxPilot is minimized or hidden, the dictation shortcut displays a small an
 
 The model menu is limited to models compatible with the selected provider's transcription endpoint. OpenAI offers its supported transcription models; OpenRouter refreshes its available speech-to-text models.
 
-Drag the top title bar to reposition VoxPilot. The minimize button places it in the Windows taskbar, and the purple VoxPilot notification-area icon can also reopen it. The middle title-bar button maximizes or restores the window; the X closes the application.
+Drag the top title bar to reposition VoxPilot. The minimize button hides VoxPilot from the taskbar while it continues running in the Windows notification area. Double-click the purple tray icon to restore it. The middle title-bar button maximizes or restores the window; the X closes the application.
 
 Each provider's API key is stored separately in Windows Credential Manager. Recordings remain in memory and are sent only to the selected provider for transcription; they are not saved by VoxPilot.
 

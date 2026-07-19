@@ -56,7 +56,7 @@ dotnet publish VoiceFlow.csproj -c Release -r win-x64 --self-contained true `
 
 For the most reliable anywhere-typing workflow, leave the caret in the destination app and use the global shortcut without clicking VoxPilot. If you use VoxPilot's microphone button, it remembers and restores the application directly beneath it before typing.
 
-Drag anywhere in the empty title-bar area to move VoxPilot. The minimize button keeps it in the Windows taskbar; double-click the purple tray icon if you hide or lose sight of the window.
+Drag anywhere in the empty title-bar area to move VoxPilot. The minimize button hides the window from the taskbar while VoxPilot keeps running in the Windows notification area. Double-click the purple tray icon to restore it.
 
 Windows prevents a normal app from injecting input into an administrator-elevated app. For security, microphone audio is held in memory and sent only to the selected provider when recording stops; VoxPilot does not save recordings to disk.
 

@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private bool _silenceStopQueued;
     private bool _initialized;
     private bool _isExiting;
+    private bool _hasShownTrayHint;
     private string? _capturingHotkey;
 
     private static readonly LanguageOption[] Languages =
@@ -171,7 +172,7 @@ public partial class MainWindow : Window
         if (SelectedProvider == ApiProvider.OpenAI || !string.IsNullOrWhiteSpace(ApiKeyBox.Password))
             await RefreshModelsAsync(false);
         if (Environment.GetCommandLineArgs().Any(a => a.Equals("--background", StringComparison.OrdinalIgnoreCase)))
-            Hide();
+            HideToTray(false);
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -756,8 +757,7 @@ public partial class MainWindow : Window
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
     {
-        SaveSettings();
-        WindowState = WindowState.Minimized;
+        HideToTray();
     }
 
     private void ExpandWindow()
@@ -776,6 +776,12 @@ public partial class MainWindow : Window
 
     private void Window_StateChanged(object? sender, EventArgs e)
     {
+        if (WindowState == WindowState.Minimized)
+        {
+            HideToTray();
+            return;
+        }
+
         if (WindowState == WindowState.Maximized)
         {
             WindowShell.Margin = new Thickness(0);
@@ -798,9 +804,26 @@ public partial class MainWindow : Window
     private void ShowFromTray()
     {
         _dictationWidget.Dismiss();
+        ShowInTaskbar = true;
         Show();
         WindowState = WindowState.Normal;
         Activate();
+        Focus();
+    }
+
+    private void HideToTray(bool showHint = true)
+    {
+        SaveSettings();
+        ShowInTaskbar = false;
+        Hide();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+
+        if (!showHint || _previewMode || _hasShownTrayHint) return;
+        _hasShownTrayHint = true;
+        _trayIcon.BalloonTipTitle = "VoxPilot is still running";
+        _trayIcon.BalloonTipText = "Use the notification-area icon or your dictation shortcut to keep working.";
+        _trayIcon.BalloonTipIcon = Forms.ToolTipIcon.Info;
+        _trayIcon.ShowBalloonTip(2500);
     }
 
     private async void Window_Deactivated(object? sender, EventArgs e)
