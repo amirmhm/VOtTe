@@ -1,0 +1,259 @@
+<Window x:Class="VoxPilot.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="VoxPilot" Icon="Assets/VoxPilot.ico"
+        Width="390" Height="590" MinWidth="390" MinHeight="184"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="CanResize" ShowInTaskbar="True" Topmost="True"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        SourceInitialized="Window_SourceInitialized"
+        Loaded="Window_Loaded" Closing="Window_Closing"
+        LocationChanged="Window_LocationChanged" Deactivated="Window_Deactivated"
+        StateChanged="Window_StateChanged">
+    <Window.Resources>
+        <Style x:Key="LabelText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="FieldBorder" TargetType="Border">
+            <Setter Property="Background" Value="#20232D" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+        </Style>
+    </Window.Resources>
+
+    <Border x:Name="WindowShell" Margin="12" CornerRadius="20" Background="{StaticResource SurfaceBrush}"
+            BorderBrush="#323746" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect Color="#000000" Opacity="0.55" BlurRadius="24" ShadowDepth="8" />
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="48" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Draggable title bar -->
+            <Grid Grid.Row="0" Margin="14,6,10,0" Background="Transparent"
+                  MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="28" Height="28" CornerRadius="9" Background="#7657F6">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Rectangle Width="2" Height="7" RadiusX="1" Fill="White" Margin="0,0,2,0" />
+                            <Rectangle Width="2" Height="12" RadiusX="1" Fill="White" Margin="0,0,2,0" />
+                            <Rectangle Width="2" Height="17" RadiusX="1" Fill="White" Margin="0,0,2,0" />
+                            <Rectangle Width="2" Height="11" RadiusX="1" Fill="White" Margin="0,0,2,0" />
+                            <Rectangle Width="2" Height="6" RadiusX="1" Fill="White" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="VoxPilot" Margin="9,0,0,0" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border x:Name="HeaderStatePill" Background="#242833" CornerRadius="7" Margin="8,0,0,0" Padding="7,3">
+                        <TextBlock x:Name="HeaderStateText" Text="READY" FontSize="9" FontWeight="Bold" Foreground="#52D0A0" />
+                    </Border>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Style="{StaticResource CaptionButton}" Click="MinimizeButton_Click" ToolTip="Minimize"
+                            AutomationProperties.Name="Minimize">
+                        <Path Width="14" Height="14" Data="M 2,10 L 12,10" Stretch="None" StrokeThickness="1.25"
+                              StrokeStartLineCap="Square" StrokeEndLineCap="Square"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                    </Button>
+                    <Button x:Name="MaximizeButton" Style="{StaticResource CaptionButton}" Click="MaximizeButton_Click" ToolTip="Maximize"
+                            AutomationProperties.Name="Maximize or restore">
+                        <Path x:Name="MaximizeIcon" Width="14" Height="14" Data="M 2,2 L 12,2 L 12,12 L 2,12 Z"
+                              Stretch="None" StrokeThickness="1.15" StrokeLineJoin="Miter" Fill="Transparent"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                    </Button>
+                    <Button Style="{StaticResource CloseCaptionButton}" Click="CloseButton_Click" ToolTip="Close VoxPilot"
+                            AutomationProperties.Name="Close">
+                        <Path Width="14" Height="14" Data="M 2.5,2.5 L 11.5,11.5 M 11.5,2.5 L 2.5,11.5"
+                              Stretch="None" StrokeThickness="1.25" StrokeStartLineCap="Square" StrokeEndLineCap="Square"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Always-visible compact controller -->
+            <Border Grid.Row="1" Margin="14,8,14,12" Padding="14,12" CornerRadius="16"
+                    BorderBrush="#353B4D" BorderThickness="1">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#1C202C" Offset="0" />
+                        <GradientStop Color="#151821" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="StatusTitle" Text="Ready to listen" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock x:Name="StatusSubtitle" Text="Ctrl + Alt + Space to start" Margin="0,3,0,0"
+                                   FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                        <StackPanel x:Name="Waveform" Orientation="Horizontal" Height="20" Margin="0,8,0,0" VerticalAlignment="Center">
+                            <Rectangle x:Name="Level1" Width="3" Height="4" RadiusX="2" Fill="#7C5CFC" Margin="0,0,4,0" VerticalAlignment="Center" />
+                            <Rectangle x:Name="Level2" Width="3" Height="7" RadiusX="2" Fill="#927BFF" Margin="0,0,4,0" VerticalAlignment="Center" />
+                            <Rectangle x:Name="Level3" Width="3" Height="5" RadiusX="2" Fill="#7C5CFC" Margin="0,0,4,0" VerticalAlignment="Center" />
+                            <Rectangle x:Name="Level4" Width="3" Height="10" RadiusX="2" Fill="#A695FF" Margin="0,0,4,0" VerticalAlignment="Center" />
+                            <Rectangle x:Name="Level5" Width="3" Height="6" RadiusX="2" Fill="#7C5CFC" Margin="0,0,4,0" VerticalAlignment="Center" />
+                            <Rectangle x:Name="Level6" Width="3" Height="8" RadiusX="2" Fill="#927BFF" Margin="0,0,4,0" VerticalAlignment="Center" />
+                            <Rectangle x:Name="Level7" Width="3" Height="4" RadiusX="2" Fill="#7C5CFC" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+                    <Button x:Name="MicButton" Grid.Column="1" Width="62" Height="62" Margin="12,0,0,0"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand" Click="MicButton_Click" ToolTip="Start or stop dictation">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Grid>
+                                    <Ellipse x:Name="OuterGlow" Fill="#30275E" />
+                                    <Ellipse x:Name="Inner" Margin="7" Fill="#7657F6" />
+                                    <TextBlock x:Name="MicGlyph" Text="&#xE720;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               Foreground="White" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Grid>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="OuterGlow" Property="Fill" Value="#44357F" />
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="OuterGlow" Property="Opacity" Value="0.35" />
+                                        <Setter TargetName="Inner" Property="Opacity" Value="0.45" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <ScrollViewer x:Name="ExpandedContent" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="14,0,14,16">
+                    <!-- Provider -->
+                    <StackPanel Margin="0,0,0,12">
+                        <TextBlock Text="TRANSCRIPTION PROVIDER" Style="{StaticResource LabelText}" Margin="2,0,0,6" />
+                        <ComboBox x:Name="ProviderCombo" Height="36" DisplayMemberPath="Name" SelectedValuePath="Id"
+                                  SelectionChanged="ProviderCombo_SelectionChanged" />
+                    </StackPanel>
+
+                    <!-- Model and language -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.2*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <Grid Margin="2,0,0,6">
+                                <TextBlock Text="TRANSCRIPTION MODEL" Style="{StaticResource LabelText}" />
+                                <Button Width="24" Height="22" HorizontalAlignment="Right" Margin="0,-5,0,0" Padding="0"
+                                        Style="{StaticResource IconButton}" Click="RefreshModelsButton_Click" ToolTip="Refresh audio models">
+                                    <TextBlock Text="↻" FontSize="14" />
+                                </Button>
+                            </Grid>
+                            <ComboBox x:Name="ModelCombo" Height="36" IsEditable="True" IsTextSearchEnabled="True"
+                                      DisplayMemberPath="Name" SelectedValuePath="Id" SelectionChanged="ModelCombo_SelectionChanged"
+                                      LostKeyboardFocus="ModelCombo_LostKeyboardFocus" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="LANGUAGE" Style="{StaticResource LabelText}" Margin="2,0,0,6" />
+                            <ComboBox x:Name="LanguageCombo" Height="36" DisplayMemberPath="Name" SelectedValuePath="Code"
+                                      SelectionChanged="LanguageCombo_SelectionChanged" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Behavior toggles -->
+                    <Border Margin="0,14,0,0" Padding="12,11" CornerRadius="12" Background="{StaticResource CardBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox x:Name="AutoTypeCheck" Content="Type at cursor" IsChecked="True" Checked="BehaviorCheck_Changed" Unchecked="BehaviorCheck_Changed" />
+                            <CheckBox x:Name="AutoCopyCheck" Grid.Column="1" Content="Copy transcript" Checked="BehaviorCheck_Changed" Unchecked="BehaviorCheck_Changed" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Transcript -->
+                    <Grid Margin="2,14,2,6">
+                        <TextBlock Text="LATEST TRANSCRIPT" Style="{StaticResource LabelText}" />
+                        <Button HorizontalAlignment="Right" Margin="0,-7,0,0" Style="{StaticResource IconButton}" Click="CopyButton_Click" ToolTip="Copy transcript">
+                            <TextBlock Text="Copy" FontSize="11" />
+                        </Button>
+                    </Grid>
+                    <Border Style="{StaticResource FieldBorder}" MinHeight="76" Padding="11,8">
+                        <TextBox x:Name="TranscriptBox" Text="Your transcription will appear here." IsReadOnly="True"
+                                 TextWrapping="Wrap" AcceptsReturn="True" Background="Transparent" BorderThickness="0"
+                                 Foreground="{StaticResource TextSecondaryBrush}" FontFamily="{StaticResource AppFont}"
+                                 FontSize="12" VerticalScrollBarVisibility="Auto" />
+                    </Border>
+
+                    <!-- API key -->
+                    <Grid Margin="2,14,2,6">
+                        <TextBlock x:Name="ApiKeyLabel" Text="OPENROUTER API KEY" Style="{StaticResource LabelText}" />
+                        <TextBlock x:Name="KeySavedText" Text="Not saved" HorizontalAlignment="Right" FontSize="10" Foreground="#FFB75E" />
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="88" />
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource FieldBorder}" Height="38">
+                            <PasswordBox x:Name="ApiKeyBox" Padding="10,7" Background="Transparent" BorderThickness="0"
+                                         Foreground="{StaticResource TextPrimaryBrush}" FontFamily="{StaticResource AppFont}" />
+                        </Border>
+                        <Button Grid.Column="2" Content="Save key" Height="38" FontSize="11" Padding="8,6"
+                                Style="{StaticResource PrimaryButton}" Click="SaveKeyButton_Click" />
+                    </Grid>
+                    <TextBlock x:Name="ApiKeyHelpText"
+                               Text="Stored in Windows Credential Manager. Audio is sent to OpenRouter only when you stop recording."
+                               Margin="2,6,2,0" FontSize="9.5" Foreground="#72798A" TextWrapping="Wrap" />
+
+                    <Border Height="1" Background="#242936" Margin="2,13,2,0" />
+
+                    <!-- Shortcuts and app options -->
+                    <Expander x:Name="SettingsExpander" Margin="0,13,0,0" Foreground="{StaticResource TextPrimaryBrush}">
+                        <Expander.Header>
+                            <TextBlock Text="Settings &amp; shortcuts" FontSize="12" FontWeight="SemiBold" />
+                        </Expander.Header>
+                        <Border Margin="0,8,0,0" Padding="12" CornerRadius="12" Background="{StaticResource CardBrush}"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Start / stop dictation" FontSize="11" />
+                                        <TextBlock x:Name="RecordHotkeyText" Text="Ctrl + Shift + F9" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    </StackPanel>
+                                    <Button x:Name="RecordHotkeyButton" Grid.Column="1" Content="Change" Style="{StaticResource SecondaryButton}" Padding="10,6" Click="RecordHotkeyButton_Click" />
+                                </Grid>
+                                <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,10" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Standby / resume" FontSize="11" />
+                                        <TextBlock x:Name="StandbyHotkeyText" Text="Ctrl + Shift + F10" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    </StackPanel>
+                                    <Button x:Name="StandbyHotkeyButton" Grid.Column="1" Content="Change" Style="{StaticResource SecondaryButton}" Padding="10,6" Click="StandbyHotkeyButton_Click" />
+                                </Grid>
+                                <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,10" />
+                                <CheckBox x:Name="AlwaysOnTopCheck" Content="Keep floating window on top" IsChecked="True" Checked="OptionsCheck_Changed" Unchecked="OptionsCheck_Changed" />
+                                <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows" Margin="0,9,0,0" Checked="OptionsCheck_Changed" Unchecked="OptionsCheck_Changed" />
+                                <CheckBox x:Name="AutoStopCheck" Content="Stop after 1.2 seconds of silence" Margin="0,9,0,0" Checked="OptionsCheck_Changed" Unchecked="OptionsCheck_Changed" />
+                                <Button Content="Enter standby" Margin="0,12,0,0" Style="{StaticResource SecondaryButton}" Click="StandbyButton_Click" />
+                            </StackPanel>
+                        </Border>
+                    </Expander>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</Window>

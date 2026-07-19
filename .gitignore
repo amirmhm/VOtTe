@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+outputs/
+VoxPilot-win-x64/
+*.zip
+*.pdb
+
+# Local QA artifacts and scratch work
+work/
+
+# IDE and user-specific files
+.vs/
+*.user
+*.suo
+
+# Local Codex metadata
+.agents/
+.codex/
+
+# OS files
+Thumbs.db
+.DS_Store
