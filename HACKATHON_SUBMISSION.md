@@ -12,9 +12,9 @@
 
 ## Short description
 
-VoxPilot is a compact Windows voice-to-text companion that turns a global keyboard shortcut into accurate typing in almost any application. It records from the default microphone, transcribes through the user's selected OpenAI or OpenRouter provider, and injects the resulting Unicode text into the application that was active when dictation began.
+VoxPilot is a compact Windows voice-to-text companion that turns a global keyboard shortcut into accurate typing in almost any application. It records from the user's selected microphone, transcribes through OpenAI or OpenRouter, optionally refines the result with GPT-5.6, and injects the resulting Unicode text into the application that was active when dictation began.
 
-Unlike transcription tools that require users to work inside a dedicated editor, VoxPilot stays out of the way. It offers an always-on-top controller, a no-focus waveform widget while minimized, system-tray controls, configurable shortcuts, automatic language detection, secure per-provider API-key storage, optional clipboard copying, and automatic silence detection.
+Unlike transcription tools that require users to work inside a dedicated editor, VoxPilot stays out of the way. It offers guided setup, microphone selection and testing, toggle and hold-to-talk modes, safe Esc cancellation, Exact/Polished/Notes output styles, an always-on-top controller, a no-focus waveform widget, system-tray controls, configurable shortcuts, automatic language detection, and secure per-provider API-key storage.
 
 ## Inspiration
 
@@ -22,10 +22,13 @@ Voice input is useful, but changing applications, copying text, and restoring fo
 
 ## What it does
 
-- Records the default Windows microphone in memory
+- Records a selected Windows microphone in memory and includes a local microphone test
 - Supports selectable OpenAI and OpenRouter transcription providers
 - Stores each provider key separately in Windows Credential Manager
 - Transcribes with automatic language detection or a selected language hint
+- Supports press-to-toggle and hold-to-talk workflows
+- Discards a recording without a provider request when the user presses Esc
+- Offers Exact output plus Polished and Notes modes powered by GPT-5.6 Terra
 - Restores the previous application and types the transcript at the caret
 - Supports global record and standby shortcuts
 - Shows live audio feedback without stealing keyboard focus
@@ -33,7 +36,7 @@ Voice input is useful, but changing applications, copying text, and restoring fo
 
 ## How we built it
 
-VoxPilot is a native .NET 10 WPF application written in C#. NAudio captures WAV audio in memory. Dedicated HTTP clients handle OpenAI and OpenRouter transcription requests. Windows APIs provide global hotkeys, secure Credential Manager integration, foreground-window tracking, Unicode input injection, tray behavior, and startup registration.
+VoxPilot is a native .NET 10 WPF application written in C#. NAudio captures WAV audio in memory. Dedicated HTTP clients handle OpenAI and OpenRouter transcription requests. Smart-text modes use the OpenAI Responses API with `gpt-5.6-terra`, low reasoning effort, and an exact-transcript fallback. Windows APIs provide global hotkeys, key-release detection, secure Credential Manager integration, foreground-window tracking, Unicode input injection, tray behavior, and startup registration.
 
 Codex with GPT-5.6 served as the primary engineering collaborator throughout development. It helped scaffold the application, implement and debug Windows integrations, iterate on the visual experience through rendered previews, package the self-contained build, and verify the final source and release artifact. The entrant directed the product scope, native-Windows architecture, interaction model, privacy constraints, provider support, and final design decisions.
 
@@ -45,9 +48,11 @@ Another challenge was presenting a useful recording and processing state while t
 
 ## Accomplishments
 
-- A complete native product experience rather than a transcription proof of concept
+- A guided native product experience rather than a transcription proof of concept
 - Reliable global-shortcut workflow across ordinary Windows applications
 - Memory-only recording and secure provider-specific credential storage
+- Push-to-talk, immediate Esc cancellation, and selectable microphone testing
+- Optional GPT-5.6 Polished and Notes modes with safe exact-text fallback
 - A polished compact controller and non-focus-stealing dictation widget
 - A self-contained Windows build that judges can run without installing the .NET SDK
 - OpenAI and OpenRouter support behind one coherent provider selector
@@ -59,7 +64,7 @@ Building dependable desktop voice input requires more than transcription accurac
 ## What's next
 
 - Optional local/offline transcription
-- User-defined vocabulary and formatting profiles
+- User-defined vocabulary and additional formatting profiles
 - Streaming transcription for lower perceived latency
 - Signed installers and automatic updates
 - Additional accessibility controls and richer language-specific formatting

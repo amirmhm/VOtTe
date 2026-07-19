@@ -139,6 +139,21 @@
                     <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource VoxVerticalScrollBar}" />
                 </ScrollViewer.Resources>
                 <StackPanel Margin="14,0,14,16">
+                    <!-- First-run guidance -->
+                    <Border x:Name="OnboardingCard" Margin="0,0,0,12" Padding="13,12" CornerRadius="13"
+                            Background="#211C38" BorderBrush="#51438B" BorderThickness="1" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock Text="Quick setup" FontSize="13" FontWeight="SemiBold" />
+                            <TextBlock Text="1  Choose a provider and save its key   ·   2  Choose and test your microphone   ·   3  Pick how the shortcut behaves"
+                                       Margin="0,5,0,0" FontSize="10" Foreground="#B6ADD9" TextWrapping="Wrap" />
+                            <TextBlock x:Name="OnboardingStatusText" Text="Complete the three steps below, then finish setup."
+                                       Margin="0,7,0,0" FontSize="10" Foreground="#D9D4EE" TextWrapping="Wrap" />
+                            <Button Content="Finish setup" HorizontalAlignment="Left" Margin="0,10,0,0"
+                                    Style="{StaticResource PrimaryButton}" Padding="12,7" FontSize="10.5"
+                                    Click="CompleteOnboardingButton_Click" />
+                        </StackPanel>
+                    </Border>
+
                     <!-- Provider -->
                     <StackPanel Margin="0,0,0,12">
                         <TextBlock Text="TRANSCRIPTION PROVIDER" Style="{StaticResource LabelText}" Margin="2,0,0,6" />
@@ -171,6 +186,45 @@
                                       SelectionChanged="LanguageCombo_SelectionChanged" />
                         </StackPanel>
                     </Grid>
+
+                    <!-- Microphone -->
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="76" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="MICROPHONE" Style="{StaticResource LabelText}" Margin="2,0,0,6" />
+                            <ComboBox x:Name="MicrophoneCombo" Height="36" DisplayMemberPath="Name" SelectedValuePath="Id"
+                                      SelectionChanged="MicrophoneCombo_SelectionChanged" />
+                        </StackPanel>
+                        <Button x:Name="TestMicrophoneButton" Grid.Column="2" Content="Test mic" Height="36"
+                                Margin="0,17,0,0" Padding="8,6" FontSize="10.5"
+                                Style="{StaticResource SecondaryButton}" Click="TestMicrophoneButton_Click" />
+                    </Grid>
+
+                    <!-- Interaction and text style -->
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="SHORTCUT BEHAVIOR" Style="{StaticResource LabelText}" Margin="2,0,0,6" />
+                            <ComboBox x:Name="InteractionCombo" Height="36" DisplayMemberPath="Name" SelectedValuePath="Id"
+                                      SelectionChanged="InteractionCombo_SelectionChanged" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="TEXT STYLE" Style="{StaticResource LabelText}" Margin="2,0,0,6" />
+                            <ComboBox x:Name="TextStyleCombo" Height="36" DisplayMemberPath="Name" SelectedValuePath="Id"
+                                      SelectionChanged="TextStyleCombo_SelectionChanged" />
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock x:Name="TextStyleHelpText"
+                               Text="Exact returns the transcript unchanged."
+                               Margin="2,6,2,0" FontSize="9.5" Foreground="#72798A" TextWrapping="Wrap" />
 
                     <!-- Behavior toggles -->
                     <Border Margin="0,14,0,0" Padding="12,11" CornerRadius="12" Background="{StaticResource CardBrush}"

@@ -1,6 +1,6 @@
 # VoxPilot
 
-VoxPilot is a compact Windows voice-to-text app that records the default microphone, sends a WAV recording to either OpenAI or OpenRouter for transcription, and can type the result into the application that was active when dictation started.
+VoxPilot is a compact Windows voice-to-text app that records a selected microphone, sends an in-memory WAV recording to either OpenAI or OpenRouter for transcription, and can type the result into the application that was active when dictation started.
 
 ![VoxPilot main window](VoxPilot-preview.png)
 
@@ -10,12 +10,16 @@ VoxPilot is a compact Windows voice-to-text app that records the default microph
 - Standard minimize, maximize/restore, and close controls
 - Recoverable from both the Windows taskbar and the VoxPilot notification-area icon
 - Live microphone-level visualization and clear ready/listening/working/standby states
+- Guided first-run setup with microphone selection and a local microphone test
 - Selectable OpenAI or OpenRouter transcription provider
 - Separate API keys stored securely for each provider
 - Native OpenAI transcription through `POST /v1/audio/transcriptions`
 - OpenRouter transcription through `POST /api/v1/audio/transcriptions`
 - Provider-specific transcription models plus editable model IDs
 - Dedicated transcription-model filtering (general audio-chat models are excluded)
+- Press-to-toggle or hold-to-talk shortcut behavior
+- Immediate **Esc** cancellation that discards the recording without contacting a provider
+- Exact, Polished, and Notes output styles; smart styles use GPT-5.6 Terra through the OpenAI Responses API
 - Automatic language detection or a manual language hint
 - Unicode text injection into the previously focused Windows application
 - Configurable global shortcuts for dictation and standby
@@ -51,14 +55,21 @@ dotnet publish VoiceFlow.csproj -c Release -r win-x64 --self-contained true `
 1. Choose **OpenAI** or **OpenRouter** as the transcription provider.
 2. Enter that provider's API key and select **Save key**.
 3. Choose an audio/transcription model and language.
-4. Switch to the app where text should appear.
-5. Press the dictation shortcut, speak, then press it again.
+4. Choose **Press to toggle** or **Hold to talk**.
+5. Choose an output style:
+   - **Exact** returns the transcript without GPT post-processing.
+   - **Polished** removes filler words and fixes punctuation and obvious grammar.
+   - **Notes** turns the transcript into concise bullet points.
+6. Switch to the app where text should appear.
+7. Press the dictation shortcut and speak. Press it again in toggle mode, or release it in hold-to-talk mode.
 
 For the most reliable anywhere-typing workflow, leave the caret in the destination app and use the global shortcut without clicking VoxPilot. If you use VoxPilot's microphone button, it remembers and restores the application directly beneath it before typing.
 
 Drag anywhere in the empty title-bar area to move VoxPilot. The minimize button hides the window from the taskbar while VoxPilot keeps running in the Windows notification area. Double-click the purple tray icon to restore it.
 
-Windows prevents a normal app from injecting input into an administrator-elevated app. For security, microphone audio is held in memory and sent only to the selected provider when recording stops; VoxPilot does not save recordings to disk.
+Press **Esc** while recording to cancel immediately; the audio is discarded and nothing is sent to a provider. Windows prevents a normal app from injecting input into an administrator-elevated app. For security, microphone audio is held in memory and sent only to the selected provider when a normal recording stops; VoxPilot does not save recordings to disk.
+
+Polished and Notes require a saved OpenAI key even if OpenRouter is selected for transcription. They use `gpt-5.6-terra` with low reasoning effort and low verbosity for a fast formatting pass. If that pass fails, VoxPilot preserves and returns the exact transcript.
 
 ## OpenAI Build Week
 
@@ -73,6 +84,7 @@ Codex and GPT-5.6 helped turn the product direction into a working Windows appli
 - Diagnosing Windows focus and privilege-boundary behavior
 - Rendering visual previews and refining the compact controller and no-focus dictation widget
 - Adding separate OpenAI and OpenRouter provider paths while preserving provider-specific keys and model choices
+- Designing guided setup, microphone testing, push-to-talk, safe cancellation, and GPT-5.6 smart-text modes
 - Building and validating the self-contained Windows distribution
 
 The entrant directed the core product decisions: a native Windows experience instead of a browser app, typing into the previously focused application, memory-only audio handling, Windows Credential Manager for secrets, configurable global shortcuts, a compact always-on-top interface, and support for multiple transcription providers. Codex accelerated implementation and debugging; the entrant selected the behavior, privacy boundaries, product scope, and final experience.
@@ -90,8 +102,9 @@ VoxPilot supports Windows 10/11 on x64 hardware. Judges can test it without rebu
 1. Download and extract the `VoxPilot-win-x64.zip` release.
 2. Run `VoxPilot.exe`.
 3. Select OpenAI or OpenRouter and save a compatible API key.
-4. Focus a text editor.
-5. Press **Ctrl + Shift + F9**, speak, then press the shortcut again.
-6. Confirm that the transcript appears in VoxPilot and is typed into the editor.
+4. Test the selected microphone and choose toggle or hold-to-talk behavior.
+5. Focus a text editor.
+6. Press **Ctrl + Shift + F9**, speak, then press it again—or hold and release it in hold-to-talk mode.
+7. Confirm that the transcript appears in VoxPilot and is typed into the editor.
 
-The API key is stored in Windows Credential Manager and is never written to the repository or `settings.json`. Audio remains in memory and is sent only to the provider selected by the tester.
+The API key is stored in Windows Credential Manager and is never written to the repository or `settings.json`. Audio remains in memory and is sent only to the provider selected by the tester. Pressing **Esc** discards the current recording without sending it.

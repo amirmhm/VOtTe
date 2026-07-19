@@ -51,6 +51,9 @@ public sealed class HotkeyService : IDisposable
         _source.RemoveHook(WindowHook);
     }
 
+    public static bool IsKeyDown(uint virtualKey) =>
+        (GetAsyncKeyState((int)virtualKey) & 0x8000) != 0;
+
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool RegisterHotKey(IntPtr window, int id, uint modifiers, uint virtualKey);
@@ -58,4 +61,7 @@ public sealed class HotkeyService : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool UnregisterHotKey(IntPtr window, int id);
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int virtualKey);
 }

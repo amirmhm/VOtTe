@@ -1,5 +1,6 @@
 using NAudio.Wave;
 using System.IO;
+using VoxPilot.Models;
 
 namespace VoxPilot.Services;
 
@@ -13,7 +14,23 @@ public sealed class AudioRecorder : IDisposable
     public event EventHandler<double>? LevelChanged;
     public bool IsRecording => _waveIn is not null;
 
-    public void Start()
+    public static IReadOnlyList<AudioDeviceOption> GetInputDevices()
+    {
+        var devices = new List<AudioDeviceOption>
+        {
+            new("System default", -1)
+        };
+
+        for (var index = 0; index < WaveIn.DeviceCount; index++)
+        {
+            var capabilities = WaveIn.GetCapabilities(index);
+            devices.Add(new AudioDeviceOption(capabilities.ProductName, index));
+        }
+
+        return devices;
+    }
+
+    public void Start(int deviceNumber = -1)
     {
         if (IsRecording) return;
 
@@ -22,7 +39,7 @@ public sealed class AudioRecorder : IDisposable
         _stopSource = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
         _waveIn = new WaveInEvent
         {
-            DeviceNumber = -1,
+            DeviceNumber = deviceNumber,
             WaveFormat = new WaveFormat(16000, 16, 1),
             BufferMilliseconds = 50,
             NumberOfBuffers = 3

@@ -6,12 +6,30 @@ public enum ApiProvider
     OpenRouter
 }
 
+public enum InteractionMode
+{
+    Toggle,
+    PushToTalk
+}
+
+public enum TextStyleMode
+{
+    Exact,
+    Polished,
+    Notes
+}
+
 public sealed class AppSettings
 {
     public ApiProvider Provider { get; set; } = ApiProvider.OpenRouter;
     public string ModelId { get; set; } = "openai/whisper-large-v3";
     public string OpenAIModelId { get; set; } = "gpt-4o-mini-transcribe";
+    public string SmartTextModelId { get; set; } = "gpt-5.6-terra";
     public string LanguageCode { get; set; } = "auto";
+    public int AudioDeviceNumber { get; set; } = -1;
+    public InteractionMode InteractionMode { get; set; } = InteractionMode.Toggle;
+    public TextStyleMode TextStyleMode { get; set; } = TextStyleMode.Exact;
+    public bool HasCompletedOnboarding { get; set; }
     public bool AutoType { get; set; } = true;
     public bool AutoCopy { get; set; }
     public bool AlwaysOnTop { get; set; } = true;
@@ -61,6 +79,21 @@ public sealed record ModelOption(string Name, string Id)
 }
 
 public sealed record ProviderOption(string Name, ApiProvider Id)
+{
+    public override string ToString() => Name;
+}
+
+public sealed record AudioDeviceOption(string Name, int Id)
+{
+    public override string ToString() => Name;
+}
+
+public sealed record InteractionOption(string Name, string Description, InteractionMode Id)
+{
+    public override string ToString() => Name;
+}
+
+public sealed record TextStyleOption(string Name, string Description, TextStyleMode Id)
 {
     public override string ToString() => Name;
 }

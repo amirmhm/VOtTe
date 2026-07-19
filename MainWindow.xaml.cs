@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     private readonly OpenAIClient _openAI = new();
     private readonly OpenRouterClient _openRouter = new();
     private readonly DispatcherTimer _silenceTimer;
+    private readonly DispatcherTimer _pushToTalkTimer;
     private readonly Stopwatch _recordingTime = new();
     private readonly AppSettings _settings;
     private readonly System.Drawing.Icon _appIcon;
@@ -43,6 +44,11 @@ public partial class MainWindow : Window
     private bool _initialized;
     private bool _isExiting;
     private bool _hasShownTrayHint;
+    private bool _pushToTalkActive;
+    private bool _escapeWasDown;
+    private bool _isMicrophoneTesting;
+    private bool _microphoneTestSucceeded;
+    private double _microphoneTestPeak;
     private string? _capturingHotkey;
 
     private static readonly LanguageOption[] Languages =
@@ -71,6 +77,19 @@ public partial class MainWindow : Window
         new("OpenRouter", ApiProvider.OpenRouter)
     ];
 
+    private static readonly InteractionOption[] InteractionModes =
+    [
+        new("Press to toggle", "Press once to start and again to stop", InteractionMode.Toggle),
+        new("Hold to talk", "Hold the shortcut and release to transcribe", InteractionMode.PushToTalk)
+    ];
+
+    private static readonly TextStyleOption[] TextStyles =
+    [
+        new("Exact", "Return the transcript unchanged", TextStyleMode.Exact),
+        new("Polished", "Clean filler words, punctuation, and grammar with GPT-5.6", TextStyleMode.Polished),
+        new("Notes", "Turn the transcript into concise bullet notes with GPT-5.6", TextStyleMode.Notes)
+    ];
+
     public MainWindow()
     {
         InitializeComponent();
@@ -80,6 +99,17 @@ public partial class MainWindow : Window
         ProviderCombo.ItemsSource = Providers;
         ProviderCombo.SelectedValue = _settings.Provider;
         if (ProviderCombo.SelectedItem is null) ProviderCombo.SelectedIndex = 0;
+
+        InteractionCombo.ItemsSource = InteractionModes;
+        InteractionCombo.SelectedValue = _settings.InteractionMode;
+        if (InteractionCombo.SelectedItem is null) InteractionCombo.SelectedIndex = 0;
+
+        TextStyleCombo.ItemsSource = TextStyles;
+        TextStyleCombo.SelectedValue = _settings.TextStyleMode;
+        if (TextStyleCombo.SelectedItem is null) TextStyleCombo.SelectedIndex = 0;
+        UpdateTextStyleHelp();
+
+        LoadMicrophones();
 
         LanguageCombo.ItemsSource = Languages;
         LanguageCombo.SelectedValue = _settings.LanguageCode;
@@ -108,12 +138,16 @@ public partial class MainWindow : Window
         }
 
         _audioRecorder.LevelChanged += AudioRecorder_LevelChanged;
-        _silenceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
+        _silenceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(75) };
         _silenceTimer.Tick += SilenceTimer_Tick;
+        _pushToTalkTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(45) };
+        _pushToTalkTimer.Tick += PushToTalkTimer_Tick;
 
         _appIcon = LoadAppIcon();
         _trayIcon = CreateTrayIcon();
+        OnboardingCard.Visibility = _settings.HasCompletedOnboarding ? Visibility.Collapsed : Visibility.Visible;
         _initialized = true;
+        UpdateOnboardingStatus();
         UpdateState(AppState.Ready);
     }
 
@@ -186,7 +220,13 @@ public partial class MainWindow : Window
     private async void Hotkeys_Pressed(object? sender, int id)
     {
         if (_capturingHotkey is not null) return;
-        if (id == HotkeyService.RecordId) await ToggleRecordingAsync();
+        if (id == HotkeyService.RecordId)
+        {
+            if (_settings.InteractionMode == InteractionMode.PushToTalk)
+                await StartRecordingAsync(true);
+            else
+                await ToggleRecordingAsync();
+        }
         if (id == HotkeyService.StandbyId) await ToggleStandbyAsync();
     }
 
@@ -194,6 +234,7 @@ public partial class MainWindow : Window
 
     private async Task ToggleRecordingAsync()
     {
+        if (_isMicrophoneTesting) return;
         if (_state == AppState.Processing) return;
         if (_state == AppState.Standby)
         {
@@ -203,7 +244,22 @@ public partial class MainWindow : Window
 
         if (_audioRecorder.IsRecording)
         {
+            _pushToTalkActive = false;
+            _pushToTalkTimer.Stop();
             await StopAndTranscribeAsync();
+            return;
+        }
+
+        await StartRecordingAsync(false);
+    }
+
+    private async Task StartRecordingAsync(bool fromPushToTalk)
+    {
+        await Task.CompletedTask;
+        if (_isMicrophoneTesting || _state == AppState.Processing || _audioRecorder.IsRecording) return;
+        if (_state == AppState.Standby)
+        {
+            SetStatusMessage("VoxPilot is in standby", $"Press {_settings.StandbyHotkey.ToDisplayString()} to resume");
             return;
         }
 
@@ -213,6 +269,15 @@ public partial class MainWindow : Window
             SettingsExpander.IsExpanded = false;
             ApiKeyBox.Focus();
             UpdateState(AppState.Error, $"Add your {ProviderDisplayName} API key", "Save it securely, then try again");
+            return;
+        }
+
+        if (_settings.TextStyleMode != TextStyleMode.Exact && string.IsNullOrWhiteSpace(GetOpenAiApiKey()))
+        {
+            ExpandWindow();
+            ProviderCombo.Focus();
+            UpdateState(AppState.Error, "OpenAI key required for smart text",
+                "Select OpenAI once, save its key, then choose either provider");
             return;
         }
 
@@ -236,15 +301,22 @@ public partial class MainWindow : Window
 
         try
         {
-            _audioRecorder.Start();
+            _audioRecorder.Start(_settings.AudioDeviceNumber);
             _recordingTime.Restart();
             _lastVoiceAt = DateTime.UtcNow;
             _silenceStopQueued = false;
+            _escapeWasDown = HotkeyService.IsKeyDown(0x1B);
+            _pushToTalkActive = fromPushToTalk;
             _silenceTimer.Start();
-            UpdateState(AppState.Listening);
+            if (fromPushToTalk) _pushToTalkTimer.Start();
+            UpdateState(AppState.Listening, "Listening…",
+                fromPushToTalk ? $"Release {_settings.RecordHotkey.ToDisplayString()} to transcribe · Esc cancels"
+                    : "Speak naturally · press again to stop · Esc cancels");
         }
         catch (Exception exception)
         {
+            _pushToTalkActive = false;
+            _pushToTalkTimer.Stop();
             UpdateState(AppState.Error, "Microphone unavailable", FriendlyError(exception));
         }
     }
@@ -252,6 +324,8 @@ public partial class MainWindow : Window
     private async Task StopAndTranscribeAsync()
     {
         _silenceTimer.Stop();
+        _pushToTalkTimer.Stop();
+        _pushToTalkActive = false;
         _recordingTime.Stop();
         UpdateState(AppState.Processing);
 
@@ -276,6 +350,27 @@ public partial class MainWindow : Window
                 return;
             }
 
+            string? smartTextWarning = null;
+            if (_settings.TextStyleMode != TextStyleMode.Exact)
+            {
+                var exactTranscript = transcript;
+                try
+                {
+                    UpdateState(AppState.Processing, $"Applying {GetTextStyleName()} style…",
+                        $"Refining with {_settings.SmartTextModelId}");
+                    var openAiKey = GetOpenAiApiKey();
+                    if (string.IsNullOrWhiteSpace(openAiKey))
+                        throw new InvalidOperationException("An OpenAI API key is required for smart text.");
+                    transcript = await _openAI.TransformTranscriptAsync(
+                        transcript, _settings.TextStyleMode, _settings.SmartTextModelId, openAiKey);
+                }
+                catch (Exception smartTextException)
+                {
+                    transcript = exactTranscript;
+                    smartTextWarning = $"Smart text was unavailable; exact transcript used. {FriendlyError(smartTextException)}";
+                }
+            }
+
             TranscriptBox.Text = transcript;
             TranscriptBox.Foreground = (Brush)FindResource("TextPrimaryBrush");
 
@@ -289,7 +384,8 @@ public partial class MainWindow : Window
                 try
                 {
                     await TextInjector.TypeAsync(transcript, _dictationTargetWindow);
-                    UpdateState(AppState.Ready, "Typed successfully", "Ready for the next thought");
+                    UpdateState(AppState.Ready, "Typed successfully",
+                        smartTextWarning ?? $"{GetTextStyleName()} text · ready for the next thought");
                 }
                 catch (Exception typingException)
                 {
@@ -300,11 +396,12 @@ public partial class MainWindow : Window
             else if (_settings.AutoType)
             {
                 try { Clipboard.SetText(transcript); } catch { }
-                UpdateState(AppState.Ready, "Transcript copied", "Focus another app, then use the dictation shortcut");
+                UpdateState(AppState.Ready, "Transcript copied",
+                    smartTextWarning ?? "Focus another app, then use the dictation shortcut");
             }
             else
             {
-                UpdateState(AppState.Ready, "Transcript ready", "Copy it or start another dictation");
+                UpdateState(AppState.Ready, "Transcript ready", smartTextWarning ?? "Copy it or start another dictation");
             }
         }
         catch (Exception exception)
@@ -318,11 +415,10 @@ public partial class MainWindow : Window
         if (_state == AppState.Processing) return;
         if (_audioRecorder.IsRecording)
         {
-            _silenceTimer.Stop();
-            try { await _audioRecorder.StopAsync(); } catch { }
+            await CancelRecordingAsync("Recording discarded", "VoxPilot is entering standby");
         }
 
-        if (_state == AppState.Standby) UpdateState(AppState.Ready, "Ready to listen", $"{_settings.RecordHotkey.ToDisplayString()} to start");
+        if (_state == AppState.Standby) UpdateState(AppState.Ready, "Ready to listen", GetRecordReadyHint());
         else UpdateState(AppState.Standby);
     }
 
@@ -331,7 +427,8 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(() =>
         {
             if (_state != AppState.Listening) return;
-            if (level > 0.12) _lastVoiceAt = DateTime.UtcNow;
+            if (_isMicrophoneTesting) _microphoneTestPeak = Math.Max(_microphoneTestPeak, level);
+            else if (level > 0.12) _lastVoiceAt = DateTime.UtcNow;
             var heights = new[] { .48, .78, .62, 1.0, .67, .84, .52 };
             var bars = Waveform.Children.OfType<Rectangle>().ToArray();
             for (var i = 0; i < bars.Length; i++)
@@ -342,11 +439,54 @@ public partial class MainWindow : Window
 
     private async void SilenceTimer_Tick(object? sender, EventArgs e)
     {
-        if (!_settings.AutoStopOnSilence || _state != AppState.Listening || _silenceStopQueued) return;
+        if (_state != AppState.Listening || _isMicrophoneTesting) return;
+
+        var escapeDown = HotkeyService.IsKeyDown(0x1B);
+        if (escapeDown && !_escapeWasDown)
+        {
+            _escapeWasDown = true;
+            await CancelRecordingAsync("Recording cancelled", "Nothing was sent to a transcription provider");
+            return;
+        }
+        _escapeWasDown = escapeDown;
+
+        if (_pushToTalkActive || !_settings.AutoStopOnSilence || _silenceStopQueued) return;
         if (_recordingTime.Elapsed < TimeSpan.FromSeconds(1.6)) return;
         if (DateTime.UtcNow - _lastVoiceAt < TimeSpan.FromSeconds(1.2)) return;
         _silenceStopQueued = true;
         await StopAndTranscribeAsync();
+    }
+
+    private async void PushToTalkTimer_Tick(object? sender, EventArgs e)
+    {
+        if (!_pushToTalkActive || _state != AppState.Listening)
+        {
+            _pushToTalkTimer.Stop();
+            return;
+        }
+
+        if (HotkeyService.IsKeyDown(_settings.RecordHotkey.VirtualKey)) return;
+        _pushToTalkTimer.Stop();
+        _pushToTalkActive = false;
+        await StopAndTranscribeAsync();
+    }
+
+    private async Task CancelRecordingAsync(string title, string subtitle)
+    {
+        _silenceTimer.Stop();
+        _pushToTalkTimer.Stop();
+        _pushToTalkActive = false;
+        _silenceStopQueued = false;
+        _recordingTime.Stop();
+        try
+        {
+            if (_audioRecorder.IsRecording) await _audioRecorder.StopAsync();
+        }
+        catch
+        {
+        }
+        ResetWaveform();
+        UpdateState(AppState.Ready, title, subtitle);
     }
 
     private async void SaveKeyButton_Click(object sender, RoutedEventArgs e)
@@ -358,12 +498,14 @@ public partial class MainWindow : Window
             {
                 KeySavedText.Text = "Not saved";
                 KeySavedText.Foreground = BrushFrom("#FFB75E");
+                UpdateOnboardingStatus();
                 UpdateState(AppState.Ready, $"{ProviderDisplayName} key removed", "Add a key to use transcription");
                 return;
             }
 
             KeySavedText.Text = "Saved securely";
             KeySavedText.Foreground = BrushFrom("#52D0A0");
+            UpdateOnboardingStatus();
             UpdateState(AppState.Ready, $"{ProviderDisplayName} key saved", "Refreshing compatible audio models...");
             await RefreshModelsAsync(true);
         }
@@ -471,6 +613,7 @@ public partial class MainWindow : Window
         ApiKeyLabel.Text = $"{ProviderDisplayName.ToUpperInvariant()} API KEY";
         ApiKeyHelpText.Text =
             $"Stored separately in Windows Credential Manager. Audio is sent to {ProviderDisplayName} only when you stop recording.";
+        UpdateOnboardingStatus();
     }
 
     private string GetStoredModelId(ApiProvider provider) =>
@@ -489,6 +632,173 @@ public partial class MainWindow : Window
             : "openai/whisper-large-v3";
         return models.FirstOrDefault(model =>
             model.Id.Equals(preferred, StringComparison.OrdinalIgnoreCase))?.Id ?? models[0].Id;
+    }
+
+    private void LoadMicrophones()
+    {
+        try
+        {
+            var devices = AudioRecorder.GetInputDevices();
+            MicrophoneCombo.ItemsSource = devices;
+            MicrophoneCombo.SelectedValue = _settings.AudioDeviceNumber;
+            if (MicrophoneCombo.SelectedItem is null)
+            {
+                _settings.AudioDeviceNumber = -1;
+                MicrophoneCombo.SelectedValue = -1;
+            }
+        }
+        catch
+        {
+            var fallback = new[] { new AudioDeviceOption("System default", -1) };
+            MicrophoneCombo.ItemsSource = fallback;
+            MicrophoneCombo.SelectedIndex = 0;
+            _settings.AudioDeviceNumber = -1;
+        }
+    }
+
+    private void MicrophoneCombo_SelectionChanged(
+        object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!_initialized || MicrophoneCombo.SelectedValue is not int deviceNumber) return;
+        _settings.AudioDeviceNumber = deviceNumber;
+        _microphoneTestSucceeded = false;
+        SaveSettings();
+        UpdateOnboardingStatus();
+    }
+
+    private async void TestMicrophoneButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_audioRecorder.IsRecording || _state == AppState.Processing) return;
+
+        _isMicrophoneTesting = true;
+        _microphoneTestSucceeded = false;
+        _microphoneTestPeak = 0;
+        TestMicrophoneButton.IsEnabled = false;
+        UpdateState(AppState.Listening, "Testing microphone…", "Speak normally for two seconds");
+        MicButton.IsEnabled = false;
+
+        try
+        {
+            _audioRecorder.Start(_settings.AudioDeviceNumber);
+            await Task.Delay(TimeSpan.FromSeconds(2.2));
+            if (_audioRecorder.IsRecording) await _audioRecorder.StopAsync();
+            ResetWaveform();
+
+            _microphoneTestSucceeded = _microphoneTestPeak >= 0.08;
+            if (_microphoneTestSucceeded)
+                UpdateState(AppState.Ready, "Microphone is working",
+                    $"{(MicrophoneCombo.SelectedItem as AudioDeviceOption)?.Name ?? "Selected microphone"} is ready");
+            else
+                UpdateState(AppState.Error, "No voice detected",
+                    "Check the selected microphone and Windows microphone permission");
+        }
+        catch (Exception exception)
+        {
+            try
+            {
+                if (_audioRecorder.IsRecording) await _audioRecorder.StopAsync();
+            }
+            catch
+            {
+            }
+            UpdateState(AppState.Error, "Microphone test failed", FriendlyError(exception));
+        }
+        finally
+        {
+            _isMicrophoneTesting = false;
+            TestMicrophoneButton.IsEnabled = true;
+            MicButton.IsEnabled = _state != AppState.Processing;
+            UpdateOnboardingStatus();
+        }
+    }
+
+    private void InteractionCombo_SelectionChanged(
+        object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!_initialized || InteractionCombo.SelectedValue is not InteractionMode mode) return;
+        _settings.InteractionMode = mode;
+        SaveSettings();
+        UpdateState(AppState.Ready, mode == InteractionMode.PushToTalk ? "Hold-to-talk enabled" : "Toggle mode enabled",
+            mode == InteractionMode.PushToTalk
+                ? $"Hold {_settings.RecordHotkey.ToDisplayString()} while speaking"
+                : $"Press {_settings.RecordHotkey.ToDisplayString()} to start and stop");
+        UpdateOnboardingStatus();
+    }
+
+    private void TextStyleCombo_SelectionChanged(
+        object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (TextStyleCombo.SelectedValue is not TextStyleMode mode) return;
+        _settings.TextStyleMode = mode;
+        UpdateTextStyleHelp();
+        if (!_initialized) return;
+        SaveSettings();
+        if (mode != TextStyleMode.Exact && string.IsNullOrWhiteSpace(GetOpenAiApiKey()))
+            UpdateState(AppState.Error, "OpenAI key needed for smart text",
+                "Select OpenAI as the provider once and save its key");
+        else
+            UpdateState(AppState.Ready, $"{GetTextStyleName()} text selected",
+                mode == TextStyleMode.Exact ? "No GPT post-processing" : $"Processed with {_settings.SmartTextModelId}");
+    }
+
+    private void UpdateTextStyleHelp()
+    {
+        if (TextStyleHelpText is null) return;
+        TextStyleHelpText.Text = _settings.TextStyleMode switch
+        {
+            TextStyleMode.Polished =>
+                $"GPT-5.6 cleans filler words, punctuation, and grammar. Requires a saved OpenAI key.",
+            TextStyleMode.Notes =>
+                $"GPT-5.6 converts the transcript into concise bullet notes. Requires a saved OpenAI key.",
+            _ => "Exact returns the provider transcript unchanged without GPT post-processing."
+        };
+    }
+
+    private string GetTextStyleName() =>
+        _settings.TextStyleMode switch
+        {
+            TextStyleMode.Polished => "Polished",
+            TextStyleMode.Notes => "Notes",
+            _ => "Exact"
+        };
+
+    private string? GetOpenAiApiKey() =>
+        SelectedProvider == ApiProvider.OpenAI && !string.IsNullOrWhiteSpace(ApiKeyBox.Password)
+            ? ApiKeyBox.Password
+            : CredentialManager.ReadApiKey(ApiProvider.OpenAI);
+
+    private void CompleteOnboardingButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(ApiKeyBox.Password))
+        {
+            OnboardingStatusText.Text = $"Save your {ProviderDisplayName} API key before finishing setup.";
+            ApiKeyBox.Focus();
+            return;
+        }
+
+        if (!_microphoneTestSucceeded)
+        {
+            OnboardingStatusText.Text = "Run the microphone test and speak clearly before finishing setup.";
+            TestMicrophoneButton.Focus();
+            return;
+        }
+
+        _settings.HasCompletedOnboarding = true;
+        OnboardingCard.Visibility = Visibility.Collapsed;
+        SaveSettings();
+        UpdateState(AppState.Ready, "Setup complete",
+            _settings.InteractionMode == InteractionMode.PushToTalk
+                ? $"Hold {_settings.RecordHotkey.ToDisplayString()} to dictate"
+                : $"Press {_settings.RecordHotkey.ToDisplayString()} to dictate");
+    }
+
+    private void UpdateOnboardingStatus()
+    {
+        if (_settings.HasCompletedOnboarding || OnboardingStatusText is null) return;
+        var key = string.IsNullOrWhiteSpace(ApiKeyBox.Password) ? "key needed" : "key ready";
+        var microphone = _microphoneTestSucceeded ? "microphone ready" : "test microphone";
+        var interaction = _settings.InteractionMode == InteractionMode.PushToTalk ? "hold to talk" : "press to toggle";
+        OnboardingStatusText.Text = $"{ProviderDisplayName}: {key}   ·   {microphone}   ·   {interaction}";
     }
 
     private void LanguageCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -644,8 +954,11 @@ public partial class MainWindow : Window
         _state = state;
         var (label, color, defaultTitle, defaultSubtitle) = state switch
         {
-            AppState.Ready => ("READY", "#52D0A0", "Ready to listen", $"{_settings.RecordHotkey.ToDisplayString()} to start"),
-            AppState.Listening => ("LISTENING", "#FF6680", "Listening…", "Speak naturally · press again to stop"),
+            AppState.Ready => ("READY", "#52D0A0", "Ready to listen", GetRecordReadyHint()),
+            AppState.Listening => ("LISTENING", "#FF6680", "Listening…",
+                _settings.InteractionMode == InteractionMode.PushToTalk
+                    ? "Release the shortcut to transcribe · Esc cancels"
+                    : "Speak naturally · press again to stop · Esc cancels"),
             AppState.Processing => ("WORKING", "#FFC857", "Transcribing…",
                 $"Sending audio securely to {ProviderDisplayName}"),
             AppState.Standby => ("STANDBY", "#8A91A3", "Standing by", $"{_settings.StandbyHotkey.ToDisplayString()} to resume"),
@@ -656,7 +969,7 @@ public partial class MainWindow : Window
         HeaderStateText.Foreground = BrushFrom(color);
         StatusTitle.Text = title ?? defaultTitle;
         StatusSubtitle.Text = subtitle ?? defaultSubtitle;
-        MicButton.IsEnabled = state != AppState.Processing;
+        MicButton.IsEnabled = state != AppState.Processing && !_isMicrophoneTesting;
         _trayIcon.Text = $"VoxPilot — {label.ToLowerInvariant()}";
         UpdateMicAppearance();
         UpdateDictationWidget(state, title ?? defaultTitle, subtitle ?? defaultSubtitle);
@@ -668,7 +981,8 @@ public partial class MainWindow : Window
         switch (state)
         {
             case AppState.Listening when mainWindowUnavailable:
-                _dictationWidget.ShowListening(_dictationTargetWindow, _settings.RecordHotkey.ToDisplayString());
+                _dictationWidget.ShowListening(_dictationTargetWindow, _settings.RecordHotkey.ToDisplayString(),
+                    _pushToTalkActive);
                 break;
             case AppState.Processing when mainWindowUnavailable || _dictationWidget.IsVisible:
                 _dictationWidget.ShowProcessing(_dictationTargetWindow);
@@ -693,6 +1007,11 @@ public partial class MainWindow : Window
         StatusTitle.Text = title;
         StatusSubtitle.Text = subtitle;
     }
+
+    private string GetRecordReadyHint() =>
+        _settings.InteractionMode == InteractionMode.PushToTalk
+            ? $"Hold {_settings.RecordHotkey.ToDisplayString()} to talk"
+            : $"{_settings.RecordHotkey.ToDisplayString()} to start";
 
     private void UpdateMicAppearance()
     {
@@ -857,6 +1176,7 @@ public partial class MainWindow : Window
         }
         SaveSettings();
         _silenceTimer.Stop();
+        _pushToTalkTimer.Stop();
         _hotkeys?.Dispose();
         _audioRecorder.Dispose();
         _openAI.Dispose();
@@ -892,15 +1212,21 @@ public partial class MainWindow : Window
     private string FriendlyError(Exception exception)
     {
         var message = exception.Message.Trim();
+        var errorProvider = exception switch
+        {
+            OpenAIException => "OpenAI",
+            OpenRouterException => "OpenRouter",
+            _ => ProviderDisplayName
+        };
         if (message.Contains("401", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase))
-            return $"The API key was rejected by {ProviderDisplayName}.";
+            return $"The API key was rejected by {errorProvider}.";
         if (message.Contains("402", StringComparison.OrdinalIgnoreCase))
-            return SelectedProvider == ApiProvider.OpenRouter
+            return errorProvider == "OpenRouter"
                 ? "OpenRouter credits are required for this model."
                 : "OpenAI billing or credits are required for this model.";
         if (message.Contains("429", StringComparison.OrdinalIgnoreCase))
-            return $"{ProviderDisplayName} is rate-limiting requests. Try again shortly.";
+            return $"{errorProvider} is rate-limiting requests. Try again shortly.";
         if (message.Contains("404", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("transcription model", StringComparison.OrdinalIgnoreCase))
             return "This model cannot transcribe audio. Refresh and choose a transcription model.";

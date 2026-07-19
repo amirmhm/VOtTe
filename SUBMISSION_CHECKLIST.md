@@ -17,8 +17,12 @@
 - [x] Release ZIP extracts correctly
 - [x] Rendered UI preview verifies the custom scrollbar layout
 - [x] Minimize hides the window from the taskbar while the tray process remains active
+- [x] Local microphone selection and test complete successfully
+- [x] Toggle recording starts and Esc cancels without sending the recording
+- [x] Hold-to-talk stays active while held and advances when released
 - [ ] Test a real OpenAI transcription
 - [ ] Test a real OpenRouter transcription
+- [ ] Test GPT-5.6 Polished and Notes output with representative speech
 - [ ] Test typing into Notepad or another non-elevated editor
 - [ ] Test fallback clipboard behavior
 - [ ] Make the packaged test build available through the repository release or submission

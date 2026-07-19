@@ -1,7 +1,7 @@
 <Window x:Class="VoxPilot.DictationWidget"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="VoxPilot dictation status" Width="304" Height="82"
+        Title="VoxPilot dictation status" Width="372" Height="82"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" ShowActivated="False"
         Focusable="False" Topmost="True" SourceInitialized="Window_SourceInitialized">

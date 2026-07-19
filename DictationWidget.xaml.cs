@@ -31,12 +31,12 @@ public partial class DictationWidget : Window
         _animationTimer.Tick += AnimationTimer_Tick;
     }
 
-    public void ShowListening(IntPtr targetWindow, string shortcut)
+    public void ShowListening(IntPtr targetWindow, string shortcut, bool pushToTalk = false)
     {
         CancelPendingHide();
         _mode = WidgetMode.Listening;
         WidgetTitle.Text = "Listening…";
-        WidgetHint.Text = $"{shortcut} to stop";
+        WidgetHint.Text = pushToTalk ? $"Release {shortcut} · Esc cancels" : $"{shortcut} to stop · Esc cancels";
         WidgetGlyph.Text = "\uE720";
         WidgetIcon.Background = BrushFrom("#7C5CFC");
         SetWaveColor("#A28FFF");
