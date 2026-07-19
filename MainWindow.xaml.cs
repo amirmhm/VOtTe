@@ -771,14 +771,16 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrWhiteSpace(ApiKeyBox.Password))
         {
-            OnboardingStatusText.Text = $"Save your {ProviderDisplayName} API key before finishing setup.";
+            OnboardingMessageText.Text = $"Save your {ProviderDisplayName} API key before completing setup.";
+            OnboardingMessageText.Foreground = BrushFrom("#FFC078");
             ApiKeyBox.Focus();
             return;
         }
 
         if (!_microphoneTestSucceeded)
         {
-            OnboardingStatusText.Text = "Run the microphone test and speak clearly before finishing setup.";
+            OnboardingMessageText.Text = "Run the microphone test and speak clearly before completing setup.";
+            OnboardingMessageText.Foreground = BrushFrom("#FFC078");
             TestMicrophoneButton.Focus();
             return;
         }
@@ -794,11 +796,36 @@ public partial class MainWindow : Window
 
     private void UpdateOnboardingStatus()
     {
-        if (_settings.HasCompletedOnboarding || OnboardingStatusText is null) return;
-        var key = string.IsNullOrWhiteSpace(ApiKeyBox.Password) ? "key needed" : "key ready";
-        var microphone = _microphoneTestSucceeded ? "microphone ready" : "test microphone";
-        var interaction = _settings.InteractionMode == InteractionMode.PushToTalk ? "hold to talk" : "press to toggle";
-        OnboardingStatusText.Text = $"{ProviderDisplayName}: {key}   ·   {microphone}   ·   {interaction}";
+        if (_settings.HasCompletedOnboarding || OnboardingMessageText is null) return;
+
+        var hasKey = !string.IsNullOrWhiteSpace(ApiKeyBox.Password);
+        var readySteps = 1 + (hasKey ? 1 : 0) + (_microphoneTestSucceeded ? 1 : 0);
+        OnboardingProgressText.Text = $"{readySteps} of 3 ready";
+        OnboardingProviderText.Text = ProviderDisplayName;
+        OnboardingMicrophoneText.Text =
+            (MicrophoneCombo.SelectedItem as AudioDeviceOption)?.Name ?? "System default";
+        OnboardingShortcutText.Text = _settings.RecordHotkey.ToDisplayString();
+        OnboardingInteractionText.Text =
+            _settings.InteractionMode == InteractionMode.PushToTalk ? "Hold to talk" : "Press to toggle";
+
+        OnboardingKeyStatusText.Text = hasKey ? "Ready" : "Required";
+        OnboardingKeyStatusText.Foreground = BrushFrom(hasKey ? "#70E5B3" : "#FFC078");
+        OnboardingKeyStatusPill.Background = BrushFrom(hasKey ? "#183B32" : "#3A2B21");
+
+        OnboardingMicrophoneStatusText.Text = _microphoneTestSucceeded ? "Ready" : "Test required";
+        OnboardingMicrophoneStatusText.Foreground =
+            BrushFrom(_microphoneTestSucceeded ? "#70E5B3" : "#FFC078");
+        OnboardingMicrophoneStatusPill.Background =
+            BrushFrom(_microphoneTestSucceeded ? "#183B32" : "#3A2B21");
+
+        OnboardingMessageText.Foreground = BrushFrom("#C5BEDD");
+        OnboardingMessageText.Text = !hasKey
+            ? $"Save your {ProviderDisplayName} API key below."
+            : !_microphoneTestSucceeded
+                ? "Run the microphone test below."
+                : "Everything is ready. Complete setup to continue.";
+        CompleteOnboardingButton.Background =
+            BrushFrom(hasKey && _microphoneTestSucceeded ? "#7657F6" : "#4A416E");
     }
 
     private void LanguageCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -908,6 +935,7 @@ public partial class MainWindow : Window
         StandbyHotkeyText.Text = _settings.StandbyHotkey.ToDisplayString();
         SaveSettings();
         EndHotkeyCapture();
+        UpdateOnboardingStatus();
         UpdateState(AppState.Ready, "Shortcut updated", hotkey.ToDisplayString());
     }
 

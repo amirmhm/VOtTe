@@ -140,16 +140,110 @@
                 </ScrollViewer.Resources>
                 <StackPanel Margin="14,0,14,16">
                     <!-- First-run guidance -->
-                    <Border x:Name="OnboardingCard" Margin="0,0,0,12" Padding="13,12" CornerRadius="13"
+                    <Border x:Name="OnboardingCard" Margin="0,0,0,12" Padding="14" CornerRadius="13"
                             Background="#211C38" BorderBrush="#51438B" BorderThickness="1" Visibility="Collapsed">
                         <StackPanel>
-                            <TextBlock Text="Quick setup" FontSize="13" FontWeight="SemiBold" />
-                            <TextBlock Text="1  Choose a provider and save its key   ·   2  Choose and test your microphone   ·   3  Pick how the shortcut behaves"
-                                       Margin="0,5,0,0" FontSize="10" Foreground="#B6ADD9" TextWrapping="Wrap" />
-                            <TextBlock x:Name="OnboardingStatusText" Text="Complete the three steps below, then finish setup."
-                                       Margin="0,7,0,0" FontSize="10" Foreground="#D9D4EE" TextWrapping="Wrap" />
-                            <Button Content="Finish setup" HorizontalAlignment="Left" Margin="0,10,0,0"
-                                    Style="{StaticResource PrimaryButton}" Padding="12,7" FontSize="10.5"
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Quick setup" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Text="Complete these once. You can change them later."
+                                               Margin="0,3,0,0" FontSize="10" Foreground="#B6ADD9" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#30284F" CornerRadius="8" Padding="8,4"
+                                        VerticalAlignment="Center">
+                                    <TextBlock x:Name="OnboardingProgressText" Text="1 of 3 ready"
+                                               FontSize="9" FontWeight="SemiBold" Foreground="#CFC5F4" />
+                                </Border>
+                            </Grid>
+
+                            <Border Margin="0,12,0,0" Padding="9,7" CornerRadius="9" Background="#18152B">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="24" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="22" Height="22" CornerRadius="11" Background="#342D56"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   FontSize="10" FontWeight="Bold" Foreground="#D9D2F5" />
+                                    </Border>
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="Provider API key" FontSize="11" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="OnboardingProviderText" Text="OpenRouter"
+                                                   Margin="0,1,0,0" FontSize="9" Foreground="#9890B6" />
+                                    </StackPanel>
+                                    <Border x:Name="OnboardingKeyStatusPill" Grid.Column="3" CornerRadius="7"
+                                            Padding="8,4" Background="#3A2B21" VerticalAlignment="Center">
+                                        <TextBlock x:Name="OnboardingKeyStatusText" Text="Required"
+                                                   FontSize="9" FontWeight="SemiBold" Foreground="#FFC078" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Margin="0,6,0,0" Padding="9,7" CornerRadius="9" Background="#18152B">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="24" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="22" Height="22" CornerRadius="11" Background="#342D56"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   FontSize="10" FontWeight="Bold" Foreground="#D9D2F5" />
+                                    </Border>
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="Microphone" FontSize="11" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="OnboardingMicrophoneText" Text="System default"
+                                                   MaxWidth="128" TextTrimming="CharacterEllipsis"
+                                                   Margin="0,1,0,0" FontSize="9" Foreground="#9890B6" />
+                                    </StackPanel>
+                                    <Border x:Name="OnboardingMicrophoneStatusPill" Grid.Column="3" CornerRadius="7"
+                                            Padding="8,4" Background="#3A2B21" VerticalAlignment="Center">
+                                        <TextBlock x:Name="OnboardingMicrophoneStatusText" Text="Test required"
+                                                   FontSize="9" FontWeight="SemiBold" Foreground="#FFC078" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Margin="0,6,0,0" Padding="9,7" CornerRadius="9" Background="#18152B">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="24" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="22" Height="22" CornerRadius="11" Background="#342D56"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   FontSize="10" FontWeight="Bold" Foreground="#D9D2F5" />
+                                    </Border>
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="Dictation shortcut" FontSize="11" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="OnboardingShortcutText" Text="Ctrl + Shift + F9"
+                                                   Margin="0,1,0,0" FontSize="9" Foreground="#9890B6" />
+                                    </StackPanel>
+                                    <Border Grid.Column="3" CornerRadius="7" Padding="8,4"
+                                            Background="#2C2747" VerticalAlignment="Center">
+                                        <TextBlock x:Name="OnboardingInteractionText" Text="Press to toggle"
+                                                   FontSize="9" FontWeight="SemiBold" Foreground="#CFC5F4" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <TextBlock x:Name="OnboardingMessageText" Text="Save your provider key below."
+                                       Margin="1,9,1,0" FontSize="10" Foreground="#C5BEDD" TextWrapping="Wrap" />
+                            <Button x:Name="CompleteOnboardingButton" Content="Complete setup"
+                                    Height="36" HorizontalAlignment="Stretch" Margin="0,9,0,0"
+                                    Style="{StaticResource PrimaryButton}" Padding="14,8" FontSize="11"
                                     Click="CompleteOnboardingButton_Click" />
                         </StackPanel>
                     </Border>
